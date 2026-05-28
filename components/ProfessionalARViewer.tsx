@@ -9,6 +9,7 @@ type ViewerStatus =
   | 'ready'
   | 'scanning'
   | 'placed'
+  | 'ios-available'
   | 'unsupported'
   | 'error';
 
@@ -105,6 +106,13 @@ function normalizeModelToGround(root: any, THREE: any) {
   root.position.y -= box.min.y;
 }
 
+function isIosSafariDevice() {
+  const ua = navigator.userAgent || '';
+  const isIos = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|OPiOS|EdgiOS|Android/.test(ua);
+  return isIos && isSafari;
+}
+
 function disposeMaterial(material: THREE.Material) {
   Object.values(material).forEach((value) => {
     if (value && typeof value === 'object' && 'isTexture' in value) {
@@ -133,6 +141,7 @@ export default function ProfessionalARViewer({
   const [progress, setProgress] = useState(0);
   const [scale, setScale] = useState(DEFAULT_SCALE);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [iosFallbackUrl, setIosFallbackUrl] = useState<string | null>(null);
 
   const statusLabel = useMemo(() => {
     switch (status) {
@@ -146,6 +155,8 @@ export default function ProfessionalARViewer({
         return 'Scan Surface';
       case 'placed':
         return 'Model Locked';
+      case 'ios-available':
+        return 'iPhone AR Ready';
       case 'unsupported':
         return 'Unsupported';
       case 'error':
@@ -163,6 +174,13 @@ export default function ProfessionalARViewer({
     async function setup() {
       const mount = mountRef.current;
       if (!mount) return;
+
+      if (isIosSafariDevice() && /\.(glb|gltf)$/i.test(modelUrl)) {
+        const fallbackUrl = modelUrl.replace(/\.(glb|gltf)$/i, '.usdz');
+        setIosFallbackUrl(fallbackUrl);
+        setStatus('ios-available');
+        return;
+      }
 
       if (!('xr' in navigator) || !navigator.xr) {
         setStatus('unsupported');
@@ -599,6 +617,18 @@ export default function ProfessionalARViewer({
                 }}
               />
             </div>
+          </section>
+        </div>
+      )}
+
+      {status === 'ios-available' && iosFallbackUrl && (
+        <div className="unsupported-screen">
+          <section className="unsupported-card">
+            <h2>iPhone AR Available</h2>
+            <p>Tap the button below to open the model in Apple Quick Look for AR viewing.</p>
+            <a href={iosFallbackUrl} rel="ar" className="control-button primary ar-action-link">
+              View in AR on iPhone
+            </a>
           </section>
         </div>
       )}
