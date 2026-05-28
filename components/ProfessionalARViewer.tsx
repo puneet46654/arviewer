@@ -1,10 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { ARButton } from 'three/addons/webxr/ARButton.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import type * as THREE from 'three';
 
 type ViewerStatus =
   | 'checking'
@@ -23,11 +20,11 @@ type SceneRefs = {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
-  controller: THREE.XRTargetRaySpace;
+  controller: any;
   reticle: THREE.Mesh;
   modelGroup: THREE.Group;
   shadowPlane: THREE.Mesh;
-  dracoLoader: DRACOLoader;
+  dracoLoader: any;
   arButton: HTMLElement | null;
 };
 
@@ -40,20 +37,27 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function cleanModelForAR(root: THREE.Object3D) {
-  const removeList: THREE.Object3D[] = [];
-  const box = new THREE.Box3();
-  const size = new THREE.Vector3();
+async function importThreeModules(modulesRef: any) {
+  if (modulesRef.current) return modulesRef.current;
+
+  const [THREE, { GLTFLoader }, { DRACOLoader }, { ARButton }] = await Promise.all([
+    import('three'),
+    import('three/addons/loaders/GLTFLoader.js'),
+    import('three/addons/loaders/DRACOLoader.js'),
+    import('three/addons/webxr/ARButton.js'),
+  ]);
+
+  modulesRef.current = { THREE, GLTFLoader, DRACOLoader, ARButton };
+  return modulesRef.current;
+}
+
+function cleanModelForAR(root: any, THREE: any) {
+  const removeList: any[] = [];
 
   root.updateMatrixWorld(true);
 
-  root.traverse((child) => {
-    const name = child.name.toLowerCase();
-
-    box.setFromObject(child);
-    box.getSize(size);
-
-    const isLargeFlatObject = size.x > 8 && size.z > 8 && size.y < 0.35;
+  root.traverse((child: any) => {
+    const name = (child.name || '').toLowerCase();
 
     const isNamedBackdrop =
       name === 'gg' ||
@@ -63,34 +67,34 @@ function cleanModelForAR(root: THREE.Object3D) {
       name.includes('floorplane') ||
       name.includes('environment');
 
-    if (child.parent && (isNamedBackdrop || isLargeFlatObject)) {
+    if (child.parent && isNamedBackdrop) {
       removeList.push(child);
     }
-  });
 
-  removeList.forEach((object) => {
-    object.parent?.remove(object);
-  });
+    if (!(child instanceof Object) || !(child.isMesh || child.type === 'Mesh')) return;
 
-  root.traverse((child) => {
-    if (!(child instanceof THREE.Mesh)) return;
-
-    child.castShadow = true;
-    child.receiveShadow = true;
+    child.castShadow = false;
+    child.receiveShadow = false;
     child.frustumCulled = true;
 
     const materials = Array.isArray(child.material)
       ? child.material
       : [child.material];
 
-    materials.forEach((material) => {
-      material.side = THREE.DoubleSide;
-      material.needsUpdate = true;
+    materials.forEach((material: any) => {
+      if (material) {
+        material.side = THREE.FrontSide;
+        material.needsUpdate = true;
+      }
     });
+  });
+
+  removeList.forEach((object) => {
+    object.parent?.remove(object);
   });
 }
 
-function normalizeModelToGround(root: THREE.Object3D) {
+function normalizeModelToGround(root: any, THREE: any) {
   const box = new THREE.Box3().setFromObject(root);
   const center = new THREE.Vector3();
 
@@ -116,6 +120,7 @@ export default function ProfessionalARViewer({
 }: ProfessionalARViewerProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const refs = useRef<SceneRefs | null>(null);
+  const modulesRef = useRef<any>(null);
 
   const hitTestSourceRef = useRef<XRHitTestSource | null>(null);
   const hitTestSourceRequestedRef = useRef(false);
@@ -180,6 +185,8 @@ export default function ProfessionalARViewer({
 
       setStatus('loading');
 
+      const { THREE, GLTFLoader, DRACOLoader, ARButton } = await importThreeModules(modulesRef);
+
       const scene = new THREE.Scene();
 
       const camera = new THREE.PerspectiveCamera(
@@ -195,8 +202,13 @@ export default function ProfessionalARViewer({
         powerPreference: 'high-performance',
       });
 
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(1);
+      renderer.setSize(window.innerWidth, window.innerHeight, false);
+      renderer.domElement.style.position = 'fixed';
+      renderer.domElement.style.top = '0';
+      renderer.domElement.style.left = '0';
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
       
       if ((THREE as any).SRGBColorSpace || (THREE as any).sRGBEncoding) {
         try {
@@ -215,11 +227,10 @@ export default function ProfessionalARViewer({
 
       const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
       keyLight.position.set(2.5, 4, 3);
-      keyLight.castShadow = true;
       scene.add(keyLight);
 
       const shadowPlane = new THREE.Mesh(
-        new THREE.CircleGeometry(1.25, 64).rotateX(-Math.PI / 2),
+        new THREE.CircleGeometry(1.25, 32).rotateX(-Math.PI / 2),
         new THREE.ShadowMaterial({ opacity: 0.22 })
       );
 
@@ -228,7 +239,7 @@ export default function ProfessionalARViewer({
       scene.add(shadowPlane);
 
       const reticle = new THREE.Mesh(
-        new THREE.RingGeometry(0.18, 0.23, 48).rotateX(-Math.PI / 2),
+        new THREE.RingGeometry(0.18, 0.23, 24).rotateX(-Math.PI / 2),
         new THREE.MeshBasicMaterial({
           color: 0x0bd3d3,
           transparent: true,
@@ -257,13 +268,13 @@ export default function ProfessionalARViewer({
 
       loader.load(
         modelUrl,
-        (gltf) => {
+        (gltf: any) => {
           if (cancelled) return;
 
           const model = gltf.scene;
 
-          cleanModelForAR(model);
-          normalizeModelToGround(model);
+          cleanModelForAR(model, THREE);
+          normalizeModelToGround(model, THREE);
 
           modelGroup.add(model);
           modelLoadedRef.current = true;
@@ -271,12 +282,12 @@ export default function ProfessionalARViewer({
           setProgress(100);
           setStatus('ready');
         },
-        (event) => {
+        (event: any) => {
           if (!event.total) return;
           const loaded = Math.round((event.loaded / event.total) * 100);
           setProgress(loaded);
         },
-        (error) => {
+        (error: any) => {
           console.error(error);
           setErrorMessage(
             'The 3D model could not be loaded. Check the GLB path and Draco decoder files.'
@@ -323,8 +334,10 @@ export default function ProfessionalARViewer({
         arButton = ARButton.createButton(renderer, {
           requiredFeatures: ['hit-test'],
         });
-        arButton.classList.add('ar-button');
-        document.body.appendChild(arButton);
+        if (arButton) {
+          arButton.classList.add('ar-button');
+          document.body.appendChild(arButton);
+        }
       } catch (err) {
         try {
           arButton = ARButton.createButton(renderer, {
@@ -333,8 +346,10 @@ export default function ProfessionalARViewer({
             domOverlay: { root: document.body },
           });
 
-          arButton.classList.add('ar-button');
-          document.body.appendChild(arButton);
+          if (arButton) {
+            arButton.classList.add('ar-button');
+            document.body.appendChild(arButton);
+          }
         } catch (err2) {
           setStatus('error');
           setErrorMessage(
@@ -345,9 +360,11 @@ export default function ProfessionalARViewer({
 
       renderer.xr.addEventListener('sessionstart', () => {
         setStatus(modelPlacedRef.current ? 'placed' : 'scanning');
+        renderer.setAnimationLoop(render);
       });
 
       renderer.xr.addEventListener('sessionend', () => {
+        renderer.setAnimationLoop(null);
         hitTestSourceRef.current?.cancel?.();
         hitTestSourceRef.current = null;
         hitTestSourceRequestedRef.current = false;
@@ -365,12 +382,12 @@ export default function ProfessionalARViewer({
           if (session && !hitTestSourceRequestedRef.current) {
             session
               .requestReferenceSpace('viewer')
-              .then((viewerSpace) => {
+              .then((viewerSpace: any) => {
                 return session.requestHitTestSource?.({
                   space: viewerSpace,
                 });
               })
-              .then((source) => {
+              .then((source: any) => {
                 if (source) {
                   hitTestSourceRef.current = source;
                 }
@@ -406,7 +423,6 @@ export default function ProfessionalARViewer({
         renderer.render(scene, camera);
       }
 
-      renderer.setAnimationLoop(render);
 
       function resize() {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -454,8 +470,8 @@ export default function ProfessionalARViewer({
       current.renderer.domElement.remove();
       current.dracoLoader.dispose();
 
-      current.scene.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
+      current.scene.traverse((object: any) => {
+        if (!object || (object.type !== 'Mesh' && !object.isMesh)) return;
 
         object.geometry.dispose();
 
