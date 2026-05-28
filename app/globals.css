@@ -154,10 +154,25 @@ button {
   background: var(--panel);
   backdrop-filter: blur(18px);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
 }
 
-.ar-panel h1 {
-  margin: 0 0 6px;
+/* Added Logo Styling Header */
+.ar-brand-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.brand-logo {
+  height: 20px;
+  width: auto;
+  object-fit: contain;
+}
+
+.ar-brand-header h1 {
+  margin: 0;
   font-size: clamp(15px, 3vw, 17px);
   line-height: 1.25;
 }
@@ -210,6 +225,7 @@ button {
   background: var(--panel-strong);
   backdrop-filter: blur(18px);
   box-shadow: 0 -18px 70px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
 }
 
 .ar-controls {
@@ -228,9 +244,10 @@ button {
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
 }
 
-.control-button:hover {
+.control-button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.12);
 }
 
@@ -279,6 +296,7 @@ button {
   border-radius: 28px;
   background: var(--panel-strong);
   backdrop-filter: blur(18px);
+  text-align: center;
 }
 
 .loading-card h2,
@@ -356,8 +374,9 @@ button {
   }
 
   .ar-meta {
-    text-align: left;
+    text-align: center;
     white-space: normal;
+    margin-top: 6px;
   }
 
   .ar-button {

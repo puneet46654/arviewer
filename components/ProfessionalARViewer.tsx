@@ -77,7 +77,6 @@ function cleanModelForAR(root: THREE.Object3D) {
 
     child.castShadow = true;
     child.receiveShadow = true;
-    // allow frustum culling for better performance on mobile
     child.frustumCulled = true;
 
     const materials = Array.isArray(child.material)
@@ -133,15 +132,15 @@ export default function ProfessionalARViewer({
   const statusLabel = useMemo(() => {
     switch (status) {
       case 'checking':
-        return 'Checking AR';
+        return 'System Check';
       case 'loading':
         return 'Loading Model';
       case 'ready':
         return 'Ready';
       case 'scanning':
-        return 'Scanning Surface';
+        return 'Scan Surface';
       case 'placed':
-        return 'Model Placed';
+        return 'Model Locked';
       case 'unsupported':
         return 'Unsupported';
       case 'error':
@@ -191,15 +190,14 @@ export default function ProfessionalARViewer({
       );
 
       const renderer = new THREE.WebGLRenderer({
-        antialias: false, // reduce GPU work on mobile
+        antialias: false, 
         alpha: true,
         powerPreference: 'high-performance',
       });
 
-      // Cap pixel ratio for mobile performance
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.setSize(window.innerWidth, window.innerHeight);
-      // keep sRGB conversion when available
+      
       if ((THREE as any).SRGBColorSpace || (THREE as any).sRGBEncoding) {
         try {
           renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -207,7 +205,6 @@ export default function ProfessionalARViewer({
       }
 
       renderer.xr.enabled = true;
-      // disable expensive shadows on low-end devices by default
       renderer.shadowMap.enabled = false;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -282,7 +279,6 @@ export default function ProfessionalARViewer({
         },
         (error) => {
           console.error(error);
-
           setErrorMessage(
             'The 3D model could not be loaded. Check the GLB path and Draco decoder files.'
           );
@@ -322,22 +318,16 @@ export default function ProfessionalARViewer({
         controller.removeEventListener('select', placeModel);
       };
 
-      // Create AR button; try with minimal options first and fallback if needed.
       let arButton: HTMLElement | null = null;
 
       try {
-        // Preferred: request hit-test (required) and avoid dom-overlay which
-        // can fail on some devices/browsers. Keep sessionInit minimal.
         arButton = ARButton.createButton(renderer, {
           requiredFeatures: ['hit-test'],
         });
         arButton.classList.add('ar-button');
         document.body.appendChild(arButton);
       } catch (err) {
-        console.warn('ARButton.createButton failed, retrying with fallback', err);
-
         try {
-          // Fallback: try including dom-overlay only if the simple creation fails.
           arButton = ARButton.createButton(renderer, {
             requiredFeatures: ['hit-test'],
             optionalFeatures: ['dom-overlay'],
@@ -347,7 +337,6 @@ export default function ProfessionalARViewer({
           arButton.classList.add('ar-button');
           document.body.appendChild(arButton);
         } catch (err2) {
-          console.error('Failed to create AR button on this device', err2);
           setStatus('error');
           setErrorMessage(
             'Unable to initialize AR on this device. Ensure you are using a compatible browser and HTTPS.'
@@ -517,10 +506,12 @@ export default function ProfessionalARViewer({
 
       <div className="ar-topbar">
         <section className="ar-panel">
-          <h1>Room AR Viewer</h1>
-          <p>
-            Move your phone slowly to scan the floor. Tap the marker once to place the model.
-          </p>
+          <div className="ar-brand-header">
+            {/* Logo loaded natively from public folder */}
+            <img src="/ssilogo.png" alt="Company Logo" className="brand-logo" />
+            <h1>Room AR Viewer</h1>
+          </div>
+          <p>Move your phone slowly to scan the floor. Tap the marker once to place the model.</p>
         </section>
 
         <div className="ar-status" aria-live="polite">
@@ -537,7 +528,7 @@ export default function ProfessionalARViewer({
             onClick={() => updateScale(scale - SCALE_STEP)}
             disabled={scale <= MIN_SCALE}
           >
-            Smaller
+            - Scale
           </button>
 
           <button
@@ -554,7 +545,7 @@ export default function ProfessionalARViewer({
             onClick={() => updateScale(scale + SCALE_STEP)}
             disabled={scale >= MAX_SCALE}
           >
-            Larger
+            + Scale
           </button>
 
           <button
@@ -577,13 +568,9 @@ export default function ProfessionalARViewer({
         <div className="loading-screen">
           <section className="loading-card">
             <h2>
-              {status === 'checking' ? 'Checking AR support' : 'Loading 3D model'}
+              {status === 'checking' ? 'System Check' : 'Loading 3D model'}
             </h2>
-
-            <p>
-              Keep the camera steady while the viewer prepares the model.
-            </p>
-
+            <p>Keep the camera steady while the viewer prepares the model.</p>
             <div className="progress-track">
               <div
                 className="progress-bar"
@@ -599,11 +586,8 @@ export default function ProfessionalARViewer({
       {status === 'unsupported' && (
         <div className="unsupported-screen">
           <section className="unsupported-card">
-            <h2>AR is not available</h2>
-
-            <p>
-              Use Chrome on an ARCore-supported Android phone. The page must be served through HTTPS.
-            </p>
+            <h2>AR Not Available</h2>
+            <p>Use Chrome on an ARCore-supported Android device. The page must be served through HTTPS.</p>
           </section>
         </div>
       )}
@@ -611,8 +595,7 @@ export default function ProfessionalARViewer({
       {status === 'error' && (
         <div className="unsupported-screen">
           <section className="unsupported-card">
-            <h2>Viewer error</h2>
-
+            <h2>Viewer Error</h2>
             <p>{errorMessage}</p>
           </section>
         </div>
