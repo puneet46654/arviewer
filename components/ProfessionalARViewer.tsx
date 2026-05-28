@@ -177,9 +177,26 @@ export default function ProfessionalARViewer({
 
       if (isIosSafariDevice() && /\.(glb|gltf)$/i.test(modelUrl)) {
         const fallbackUrl = modelUrl.replace(/\.(glb|gltf)$/i, '.usdz');
-        setIosFallbackUrl(fallbackUrl);
-        setStatus('ios-available');
-        return;
+        
+        // Verify the USDZ file exists
+        try {
+          const response = await fetch(fallbackUrl, { method: 'HEAD' });
+          if (response.ok) {
+            console.log('iOS USDZ model found:', fallbackUrl);
+            setIosFallbackUrl(fallbackUrl);
+            setStatus('ios-available');
+            return;
+          } else {
+            throw new Error(`USDZ file not found: ${response.status}`);
+          }
+        } catch (error) {
+          console.error('Failed to verify USDZ file:', error);
+          setErrorMessage(
+            'iPhone AR model file not found. Please provide a .usdz file alongside the .glb file.'
+          );
+          setStatus('error');
+          return;
+        }
       }
 
       if (!('xr' in navigator) || !navigator.xr) {
