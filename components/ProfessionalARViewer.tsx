@@ -77,7 +77,8 @@ function cleanModelForAR(root: THREE.Object3D) {
 
     child.castShadow = true;
     child.receiveShadow = true;
-    child.frustumCulled = false;
+    // allow frustum culling for better performance on mobile
+    child.frustumCulled = true;
 
     const materials = Array.isArray(child.material)
       ? child.material
@@ -190,16 +191,24 @@ export default function ProfessionalARViewer({
       );
 
       const renderer = new THREE.WebGLRenderer({
-        antialias: true,
+        antialias: false, // reduce GPU work on mobile
         alpha: true,
         powerPreference: 'high-performance',
       });
 
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      // Cap pixel ratio for mobile performance
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      // keep sRGB conversion when available
+      if ((THREE as any).SRGBColorSpace || (THREE as any).sRGBEncoding) {
+        try {
+          renderer.outputColorSpace = THREE.SRGBColorSpace;
+        } catch {}
+      }
+
       renderer.xr.enabled = true;
-      renderer.shadowMap.enabled = true;
+      // disable expensive shadows on low-end devices by default
+      renderer.shadowMap.enabled = false;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
       mount.appendChild(renderer.domElement);
@@ -313,16 +322,38 @@ export default function ProfessionalARViewer({
         controller.removeEventListener('select', placeModel);
       };
 
-      const arButton = ARButton.createButton(renderer, {
-        requiredFeatures: ['hit-test'],
-        optionalFeatures: ['dom-overlay'],
-        domOverlay: {
-          root: document.body,
-        },
-      });
+      // Create AR button; try with minimal options first and fallback if needed.
+      let arButton: HTMLElement | null = null;
 
-      arButton.classList.add('ar-button');
-      document.body.appendChild(arButton);
+      try {
+        // Preferred: request hit-test (required) and avoid dom-overlay which
+        // can fail on some devices/browsers. Keep sessionInit minimal.
+        arButton = ARButton.createButton(renderer, {
+          requiredFeatures: ['hit-test'],
+        });
+        arButton.classList.add('ar-button');
+        document.body.appendChild(arButton);
+      } catch (err) {
+        console.warn('ARButton.createButton failed, retrying with fallback', err);
+
+        try {
+          // Fallback: try including dom-overlay only if the simple creation fails.
+          arButton = ARButton.createButton(renderer, {
+            requiredFeatures: ['hit-test'],
+            optionalFeatures: ['dom-overlay'],
+            domOverlay: { root: document.body },
+          });
+
+          arButton.classList.add('ar-button');
+          document.body.appendChild(arButton);
+        } catch (err2) {
+          console.error('Failed to create AR button on this device', err2);
+          setStatus('error');
+          setErrorMessage(
+            'Unable to initialize AR on this device. Ensure you are using a compatible browser and HTTPS.'
+          );
+        }
+      }
 
       renderer.xr.addEventListener('sessionstart', () => {
         setStatus(modelPlacedRef.current ? 'placed' : 'scanning');
