@@ -1,13 +1,13 @@
 :root {
   --bg: #05070d;
-  --panel: rgba(10, 18, 30, 0.72);
-  --panel-strong: rgba(10, 18, 30, 0.92);
+  --panel: rgba(10, 18, 30, 0.74);
+  --panel-strong: rgba(10, 18, 30, 0.94);
   --text: #f7fbff;
   --muted: #aab6c5;
   --cyan: #0bd3d3;
   --cyan-dark: #099f9e;
   --line: rgba(255, 255, 255, 0.14);
-  --danger: #ff7a7a;
+  --danger: #ff8a8a;
 }
 
 * {
@@ -21,7 +21,18 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: Inter, Sora, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    Inter,
+    Sora,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+body {
+  overflow-x: hidden;
 }
 
 button,
@@ -29,11 +40,15 @@ a {
   font: inherit;
 }
 
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
 .home-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: clamp(18px, 4vw, 32px);
   background:
     radial-gradient(circle at 20% 20%, rgba(11, 211, 211, 0.18), transparent 32%),
     radial-gradient(circle at 80% 75%, rgba(42, 59, 143, 0.28), transparent 34%),
@@ -44,7 +59,7 @@ a {
   width: min(720px, 100%);
   padding: clamp(28px, 5vw, 56px);
   border: 1px solid var(--line);
-  border-radius: 32px;
+  border-radius: clamp(22px, 4vw, 32px);
   background: var(--panel);
   backdrop-filter: blur(18px);
   box-shadow: 0 32px 80px rgba(0, 0, 0, 0.42);
@@ -53,17 +68,17 @@ a {
 .eyebrow {
   margin: 0 0 12px;
   color: var(--cyan);
-  font-size: 13px;
+  font-size: clamp(11px, 2.2vw, 13px);
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .home-card h1 {
+  max-width: 640px;
   margin: 0;
-  max-width: 620px;
-  font-size: clamp(36px, 7vw, 68px);
-  line-height: 0.95;
+  font-size: clamp(34px, 8vw, 68px);
+  line-height: 0.98;
   letter-spacing: -0.06em;
 }
 
@@ -71,7 +86,7 @@ a {
   max-width: 560px;
   margin: 22px 0 32px;
   color: var(--muted);
-  font-size: 18px;
+  font-size: clamp(15px, 2.4vw, 18px);
   line-height: 1.65;
 }
 
@@ -90,6 +105,13 @@ a {
   text-decoration: none;
   cursor: pointer;
   box-shadow: 0 18px 42px rgba(11, 211, 211, 0.22);
+}
+
+.primary-link:focus-visible,
+.ar-button:focus-visible,
+.control-button:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
 }
 
 .ar-shell {
@@ -114,9 +136,9 @@ a {
 .ar-topbar {
   position: fixed;
   z-index: 20;
-  top: max(16px, env(safe-area-inset-top));
-  left: 16px;
-  right: 16px;
+  top: max(14px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
+  right: max(14px, env(safe-area-inset-right));
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -125,7 +147,7 @@ a {
 }
 
 .ar-panel {
-  max-width: min(520px, calc(100vw - 32px));
+  width: min(520px, 100%);
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 22px;
@@ -136,14 +158,14 @@ a {
 
 .ar-panel h1 {
   margin: 0 0 6px;
-  font-size: 16px;
+  font-size: clamp(15px, 3vw, 17px);
   line-height: 1.25;
 }
 
 .ar-panel p {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: clamp(12px, 2.5vw, 13px);
   line-height: 1.45;
 }
 
@@ -175,8 +197,8 @@ a {
 .ar-bottom-panel {
   position: fixed;
   z-index: 20;
-  left: 16px;
-  right: 16px;
+  left: max(14px, env(safe-area-inset-left));
+  right: max(14px, env(safe-area-inset-right));
   bottom: max(18px, env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
@@ -203,13 +225,18 @@ a {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
   color: var(--text);
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
 }
 
+.control-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .control-button:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
+  opacity: 0.42;
 }
 
 .control-button.warning {
@@ -224,6 +251,11 @@ a {
   font-size: 12px;
   line-height: 1.25;
   text-align: right;
+  white-space: nowrap;
+}
+
+.ar-meta strong {
+  color: var(--text);
 }
 
 .loading-screen,
@@ -242,7 +274,7 @@ a {
 .loading-card,
 .unsupported-card {
   width: min(560px, 100%);
-  padding: 28px;
+  padding: clamp(22px, 5vw, 30px);
   border: 1px solid var(--line);
   border-radius: 28px;
   background: var(--panel-strong);
@@ -252,7 +284,7 @@ a {
 .loading-card h2,
 .unsupported-card h2 {
   margin: 0 0 10px;
-  font-size: 26px;
+  font-size: clamp(22px, 5vw, 28px);
   line-height: 1.1;
 }
 
@@ -260,6 +292,7 @@ a {
 .unsupported-card p {
   margin: 0 0 18px;
   color: var(--muted);
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -277,26 +310,123 @@ a {
   transition: width 220ms ease;
 }
 
+.ar-button {
+  position: fixed !important;
+  left: 50% !important;
+  bottom: max(106px, calc(env(safe-area-inset-bottom) + 106px)) !important;
+  z-index: 50 !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  min-width: 150px !important;
+  height: 48px !important;
+  border: 0 !important;
+  outline: none !important;
+  font-size: 14px !important;
+  letter-spacing: 0 !important;
+}
+
 @media (max-width: 720px) {
   .ar-topbar {
     flex-direction: column;
   }
 
+  .ar-panel {
+    width: 100%;
+  }
+
+  .ar-status {
+    align-self: flex-start;
+  }
+
   .ar-bottom-panel {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .ar-meta {
-    text-align: left;
+    border-radius: 22px;
   }
 
   .ar-controls {
     width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .control-button,
+  .control-button {
+    width: 100%;
+    padding: 0 10px;
+  }
+
+  .ar-meta {
+    text-align: left;
+    white-space: normal;
+  }
+
   .ar-button {
-    flex: 1 1 auto;
+    bottom: max(156px, calc(env(safe-area-inset-bottom) + 156px)) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .home-card {
+    padding: 26px 22px;
+  }
+
+  .home-card h1 {
+    letter-spacing: -0.045em;
+  }
+
+  .ar-topbar {
+    top: max(10px, env(safe-area-inset-top));
+    left: 10px;
+    right: 10px;
+  }
+
+  .ar-bottom-panel {
+    left: 10px;
+    right: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    padding: 10px;
+  }
+
+  .ar-panel {
+    padding: 12px 13px;
+    border-radius: 18px;
+  }
+
+  .ar-controls {
+    gap: 7px;
+  }
+
+  .control-button {
+    min-height: 40px;
+    font-size: 12px;
+  }
+
+  .ar-button {
+    min-width: 140px !important;
+    height: 46px !important;
+    bottom: max(148px, calc(env(safe-area-inset-bottom) + 148px)) !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .ar-topbar {
+    max-width: 52vw;
+  }
+
+  .ar-panel p {
+    display: none;
+  }
+
+  .ar-bottom-panel {
+    width: min(520px, calc(100vw - 28px));
+    left: 14px;
+    right: auto;
+  }
+
+  .ar-button {
+    left: auto !important;
+    right: 18px !important;
+    bottom: max(22px, env(safe-area-inset-bottom)) !important;
+    transform: none !important;
   }
 }
