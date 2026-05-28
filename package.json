@@ -20,6 +20,9 @@
     "@types/react-dom": "latest",
     "@types/three": "latest",
     "@types/webxr": "latest",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.19",
     "typescript": "latest"
   }
 }
