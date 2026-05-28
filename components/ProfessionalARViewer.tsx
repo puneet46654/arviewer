@@ -52,8 +52,6 @@ function cleanModelForAR(root: THREE.Object3D) {
       name.includes('backdrop') ||
       name.includes('floor_plane');
 
-    // The uploaded GLB contains a very large backdrop/floor plane.
-    // Remove only large backdrop-like objects so useful screen panels are not accidentally deleted.
     if (isNamedBackdrop || isHugeFlatPlane) {
       removeList.push(child);
     }
@@ -103,22 +101,14 @@ export default function ProfessionalARViewer({ modelUrl }: ProfessionalARViewerP
 
   const statusLabel = useMemo(() => {
     switch (status) {
-      case 'checking':
-        return 'Checking AR';
-      case 'loading':
-        return 'Loading model';
-      case 'ready':
-        return 'Ready';
-      case 'scanning':
-        return 'Scanning floor';
-      case 'placed':
-        return 'Model locked';
-      case 'unsupported':
-        return 'Not supported';
-      case 'error':
-        return 'Error';
-      default:
-        return 'AR';
+      case 'checking': return 'Checking AR';
+      case 'loading': return 'Loading';
+      case 'ready': return 'Ready';
+      case 'scanning': return 'Scanning Floor';
+      case 'placed': return 'Locked';
+      case 'unsupported': return 'Not Supported';
+      case 'error': return 'Error';
+      default: return 'AR';
     }
   }, [status]);
 
@@ -150,7 +140,6 @@ export default function ProfessionalARViewer({ modelUrl }: ProfessionalARViewerP
       setStatus('loading');
 
       const scene = new THREE.Scene();
-
       const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 40);
 
       const renderer = new THREE.WebGLRenderer({
@@ -226,7 +215,7 @@ export default function ProfessionalARViewer({ modelUrl }: ProfessionalARViewerP
         },
         (error) => {
           console.error(error);
-          setErrorMessage('The GLB model could not be loaded. Check the model path and Draco decoder files.');
+          setErrorMessage('Model failed to load.');
           setStatus('error');
         }
       );
@@ -255,6 +244,7 @@ export default function ProfessionalARViewer({ modelUrl }: ProfessionalARViewerP
         optionalFeatures: ['dom-overlay'],
         domOverlay: { root: document.body },
       });
+      
       arButton.classList.add('ar-button');
       arButton.style.position = 'fixed';
       arButton.style.left = '50%';
@@ -266,11 +256,7 @@ export default function ProfessionalARViewer({ modelUrl }: ProfessionalARViewerP
       document.body.appendChild(arButton);
 
       renderer.xr.addEventListener('sessionstart', () => {
-        if (modelPlacedRef.current) {
-          setStatus('placed');
-        } else {
-          setStatus('scanning');
-        }
+        setStatus(modelPlacedRef.current ? 'placed' : 'scanning');
       });
 
       renderer.xr.addEventListener('sessionend', () => {
@@ -291,7 +277,6 @@ export default function ProfessionalARViewer({ modelUrl }: ProfessionalARViewerP
                 hitTestSourceRef.current = source;
               });
             });
-
             hitTestSourceRequestedRef.current = true;
           }
 
@@ -402,10 +387,8 @@ export default function ProfessionalARViewer({ modelUrl }: ProfessionalARViewerP
 
       <div className="ar-topbar">
         <section className="ar-panel">
-          <h1>Professional Room AR Viewer</h1>
-          <p>
-            Move your phone slowly to detect the floor. When the cyan ring appears, tap once to place and lock the model.
-          </p>
+          <h1>AR Viewer</h1>
+          <p>Scan floor to position. Tap to place.</p>
         </section>
 
         <div className="ar-status" aria-live="polite">
@@ -420,27 +403,25 @@ export default function ProfessionalARViewer({ modelUrl }: ProfessionalARViewerP
             - Scale
           </button>
           <button className="control-button" type="button" onClick={() => updateScale(DEFAULT_SCALE)}>
-            1:1 Size
+            1:1
           </button>
           <button className="control-button" type="button" onClick={() => updateScale(scale + SCALE_STEP)}>
             + Scale
           </button>
           <button className="control-button warning" type="button" onClick={resetPlacement}>
-            Reposition
+            Reset
           </button>
         </div>
 
         <div className="ar-meta">
           <strong>Scale: {scale.toFixed(2)}x</strong>
-          <span>Background plane removed automatically</span>
         </div>
       </section>
 
       {(status === 'loading' || status === 'checking') && (
         <div className="loading-screen">
           <section className="loading-card">
-            <h2>{status === 'checking' ? 'Checking AR support' : 'Preparing 3D model'}</h2>
-            <p>Keep the model at real-world scale for accurate room placement.</p>
+            <h2>{status === 'checking' ? 'System Check' : 'Loading Model'}</h2>
             <div className="progress-track">
               <div className="progress-bar" style={{ width: `${status === 'checking' ? 24 : progress}%` }} />
             </div>
@@ -451,11 +432,8 @@ export default function ProfessionalARViewer({ modelUrl }: ProfessionalARViewerP
       {status === 'unsupported' && (
         <div className="unsupported-screen">
           <section className="unsupported-card">
-            <h2>AR is not available on this device/browser</h2>
-            <p>
-              Use Chrome on an ARCore-supported Android phone and open this page through HTTPS. For iPhone support, export the
-              model to USDZ and use Quick Look or model-viewer fallback.
-            </p>
+            <h2>AR Not Supported</h2>
+            <p>Requires an ARCore compatible browser over HTTPS.</p>
           </section>
         </div>
       )}
@@ -463,7 +441,7 @@ export default function ProfessionalARViewer({ modelUrl }: ProfessionalARViewerP
       {status === 'error' && (
         <div className="unsupported-screen">
           <section className="unsupported-card">
-            <h2>Unable to load AR model</h2>
+            <h2>Loading Error</h2>
             <p>{errorMessage}</p>
           </section>
         </div>
