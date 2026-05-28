@@ -190,7 +190,7 @@ export default function ProfessionalARViewer({
       );
 
       const renderer = new THREE.WebGLRenderer({
-        antialias: false, 
+        antialias: false,
         alpha: true,
         powerPreference: 'high-performance',
       });
@@ -273,7 +273,6 @@ export default function ProfessionalARViewer({
         },
         (event) => {
           if (!event.total) return;
-
           const loaded = Math.round((event.loaded / event.total) * 100);
           setProgress(loaded);
         },
@@ -499,6 +498,9 @@ export default function ProfessionalARViewer({
   }
 
   const isLoading = status === 'loading' || status === 'checking';
+  
+  // Only show the control panel WHEN the AR session is actually active
+  const isSessionActive = status === 'scanning' || status === 'placed';
 
   return (
     <main className="ar-shell">
@@ -507,7 +509,6 @@ export default function ProfessionalARViewer({
       <div className="ar-topbar">
         <section className="ar-panel">
           <div className="ar-brand-header">
-            {/* Logo loaded natively from public folder */}
             <img src="/ssilogo.png" alt="Company Logo" className="brand-logo" />
             <h1>Room AR Viewer</h1>
           </div>
@@ -520,49 +521,52 @@ export default function ProfessionalARViewer({
         </div>
       </div>
 
-      <section className="ar-bottom-panel">
-        <div className="ar-controls">
-          <button
-            className="control-button"
-            type="button"
-            onClick={() => updateScale(scale - SCALE_STEP)}
-            disabled={scale <= MIN_SCALE}
-          >
-            - Scale
-          </button>
+      {/* Renders ONLY after hitting "START AR" */}
+      {isSessionActive && (
+        <section className="ar-bottom-panel">
+          <div className="ar-controls">
+            <button
+              className="control-button"
+              type="button"
+              onClick={() => updateScale(scale - SCALE_STEP)}
+              disabled={scale <= MIN_SCALE}
+            >
+              - Scale
+            </button>
 
-          <button
-            className="control-button"
-            type="button"
-            onClick={() => updateScale(DEFAULT_SCALE)}
-          >
-            Actual Size
-          </button>
+            <button
+              className="control-button"
+              type="button"
+              onClick={() => updateScale(DEFAULT_SCALE)}
+            >
+              Actual Size
+            </button>
 
-          <button
-            className="control-button"
-            type="button"
-            onClick={() => updateScale(scale + SCALE_STEP)}
-            disabled={scale >= MAX_SCALE}
-          >
-            + Scale
-          </button>
+            <button
+              className="control-button"
+              type="button"
+              onClick={() => updateScale(scale + SCALE_STEP)}
+              disabled={scale >= MAX_SCALE}
+            >
+              + Scale
+            </button>
 
-          <button
-            className="control-button warning"
-            type="button"
-            onClick={resetPlacement}
-            disabled={!modelPlacedRef.current}
-          >
-            Reposition
-          </button>
-        </div>
+            <button
+              className="control-button warning"
+              type="button"
+              onClick={resetPlacement}
+              disabled={!modelPlacedRef.current}
+            >
+              Reposition
+            </button>
+          </div>
 
-        <div className="ar-meta">
-          <strong>Scale: {scale.toFixed(2)}x</strong>
-          <span>Tap once to lock placement</span>
-        </div>
-      </section>
+          <div className="ar-meta">
+            <strong>Scale: {scale.toFixed(2)}x</strong>
+            <span>Tap once to lock placement</span>
+          </div>
+        </section>
+      )}
 
       {isLoading && (
         <div className="loading-screen">

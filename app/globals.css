@@ -2,12 +2,12 @@
   --bg: #05070d;
   --panel: rgba(10, 18, 30, 0.74);
   --panel-strong: rgba(10, 18, 30, 0.94);
-  --text: #f7fbff;
-  --muted: #aab6c5;
+  --text: #ffffff; /* Brighter pure white text */
+  --muted: #cbd5e1; /* Lighter muted text */
   --cyan: #0bd3d3;
   --cyan-dark: #099f9e;
-  --line: rgba(255, 255, 255, 0.14);
-  --danger: #ff8a8a;
+  --line: rgba(255, 255, 255, 0.2);
+  --danger: #ff4d4d; /* Bright contrast red */
 }
 
 * {
@@ -21,14 +21,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family:
-    Inter,
-    Sora,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: Inter, Sora, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 body {
@@ -90,8 +83,7 @@ button {
   line-height: 1.65;
 }
 
-.primary-link,
-.ar-button {
+.primary-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -108,7 +100,6 @@ button {
 }
 
 .primary-link:focus-visible,
-.ar-button:focus-visible,
 .control-button:focus-visible {
   outline: 2px solid var(--cyan);
   outline-offset: 3px;
@@ -157,7 +148,6 @@ button {
   pointer-events: auto;
 }
 
-/* Added Logo Styling Header */
 .ar-brand-header {
   display: flex;
   align-items: center;
@@ -225,7 +215,6 @@ button {
   background: var(--panel-strong);
   backdrop-filter: blur(18px);
   box-shadow: 0 -18px 70px rgba(0, 0, 0, 0.35);
-  pointer-events: auto;
 }
 
 .ar-controls {
@@ -234,36 +223,45 @@ button {
   gap: 8px;
 }
 
+/* Updated Button Styles for Contrast */
 .control-button {
-  min-height: 42px;
+  min-height: 44px;
   padding: 0 14px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, opacity 0.2s;
+  transition: transform 0.1s, background 0.2s;
 }
 
-.control-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+.control-button:active:not(:disabled) {
+  transform: scale(0.96);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .control-button:disabled {
   cursor: not-allowed;
-  opacity: 0.42;
+  opacity: 0.35;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .control-button.warning {
   color: var(--danger);
+  background: rgba(255, 77, 77, 0.15);
+  border-color: rgba(255, 77, 77, 0.3);
+}
+
+.control-button.warning:active:not(:disabled) {
+  background: rgba(255, 77, 77, 0.25);
 }
 
 .ar-meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.25;
@@ -296,7 +294,6 @@ button {
   border-radius: 28px;
   background: var(--panel-strong);
   backdrop-filter: blur(18px);
-  text-align: center;
 }
 
 .loading-card h2,
@@ -328,19 +325,26 @@ button {
   transition: width 220ms ease;
 }
 
-.ar-button {
+/* Target the auto-generated Three.js AR button specifically */
+.ar-button, #ARButton {
   position: fixed !important;
   left: 50% !important;
-  bottom: max(106px, calc(env(safe-area-inset-bottom) + 106px)) !important;
+  bottom: max(40px, env(safe-area-inset-bottom)) !important;
   z-index: 50 !important;
   transform: translateX(-50%) !important;
   width: auto !important;
-  min-width: 150px !important;
-  height: 48px !important;
-  border: 0 !important;
+  min-width: 200px !important;
+  height: 52px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, var(--cyan), #5cf4d0) !important;
+  color: #00191c !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.5px !important;
+  box-shadow: 0 12px 32px rgba(11, 211, 211, 0.3) !important;
   outline: none !important;
-  font-size: 14px !important;
-  letter-spacing: 0 !important;
+  cursor: pointer !important;
 }
 
 @media (max-width: 720px) {
@@ -378,21 +382,9 @@ button {
     white-space: normal;
     margin-top: 6px;
   }
-
-  .ar-button {
-    bottom: max(156px, calc(env(safe-area-inset-bottom) + 156px)) !important;
-  }
 }
 
 @media (max-width: 420px) {
-  .home-card {
-    padding: 26px 22px;
-  }
-
-  .home-card h1 {
-    letter-spacing: -0.045em;
-  }
-
   .ar-topbar {
     top: max(10px, env(safe-area-inset-top));
     left: 10px;
@@ -417,35 +409,6 @@ button {
 
   .control-button {
     min-height: 40px;
-    font-size: 12px;
-  }
-
-  .ar-button {
-    min-width: 140px !important;
-    height: 46px !important;
-    bottom: max(148px, calc(env(safe-area-inset-bottom) + 148px)) !important;
-  }
-}
-
-@media (orientation: landscape) and (max-height: 520px) {
-  .ar-topbar {
-    max-width: 52vw;
-  }
-
-  .ar-panel p {
-    display: none;
-  }
-
-  .ar-bottom-panel {
-    width: min(520px, calc(100vw - 28px));
-    left: 14px;
-    right: auto;
-  }
-
-  .ar-button {
-    left: auto !important;
-    right: 18px !important;
-    bottom: max(22px, env(safe-area-inset-bottom)) !important;
-    transform: none !important;
+    font-size: 13px;
   }
 }
