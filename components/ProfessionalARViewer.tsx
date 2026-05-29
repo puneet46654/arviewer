@@ -112,6 +112,11 @@ function isIosDevice() {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
+function isIosInAppBrowser() {
+  const ua = navigator.userAgent || '';
+  return isIosDevice() && /FBAN|FBAV|Instagram|Twitter|LinkedIn|Line|WhatsApp|Snapchat|Telegram|WeChat|Teams/i.test(ua);
+}
+
 function resolveAbsoluteUrl(url: string) {
   try {
     return new URL(url, window.location.href).toString();
@@ -204,6 +209,14 @@ export default function ProfessionalARViewer({
       if (!mount) return;
 
       if (isIosDevice()) {
+        if (isIosInAppBrowser()) {
+          setErrorMessage(
+            'iPhone AR is not supported inside an in-app browser like Teams. Please open this page in Safari to use AR.'
+          );
+          setStatus('error');
+          return;
+        }
+
         if (/\.usdz$/i.test(modelUrl)) {
           const absoluteUrl = resolveAbsoluteUrl(modelUrl);
           const exists = await urlExists(absoluteUrl);
@@ -691,7 +704,6 @@ export default function ProfessionalARViewer({
             <a
               href={iosFallbackUrl}
               rel="ar"
-              target="_blank"
               className="control-button primary ar-action-link"
             >
               <img
