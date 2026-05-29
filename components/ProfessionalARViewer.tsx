@@ -106,12 +106,10 @@ function normalizeModelToGround(root: any, THREE: any) {
   root.position.y -= box.min.y;
 }
 
-function isIosSafariDevice() {
+function isIosDevice() {
   const ua = navigator.userAgent || '';
-  const isIos = /iPad|iPhone|iPod/.test(ua) ||
+  return /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|OPiOS|EdgiOS|Android/.test(ua);
-  return isIos && isSafari;
 }
 
 function resolveAbsoluteUrl(url: string) {
@@ -119,6 +117,15 @@ function resolveAbsoluteUrl(url: string) {
     return new URL(url, window.location.href).toString();
   } catch {
     return url;
+  }
+}
+
+async function urlExists(url: string) {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    return response.ok;
+  } catch {
+    return false;
   }
 }
 
@@ -184,21 +191,43 @@ export default function ProfessionalARViewer({
       const mount = mountRef.current;
       if (!mount) return;
 
-      if (isIosSafariDevice()) {
+      if (isIosDevice()) {
         if (/\.usdz$/i.test(modelUrl)) {
-          setIosFallbackUrl(resolveAbsoluteUrl(modelUrl));
-          setStatus('ios-available');
+          const absoluteUrl = resolveAbsoluteUrl(modelUrl);
+          const exists = await urlExists(absoluteUrl);
+
+          if (exists) {
+            setIosFallbackUrl(absoluteUrl);
+            setStatus('ios-available');
+            return;
+          }
+
+          setErrorMessage(
+            'The iPhone AR model file could not be found. Please make sure the .usdz file is available and served over HTTPS.'
+          );
+          setStatus('error');
           return;
         }
 
         if (/\.(glb|gltf)$/i.test(modelUrl)) {
-          setIosFallbackUrl(resolveAbsoluteUrl(modelUrl.replace(/\.(glb|gltf)$/i, '.usdz')));
-          setStatus('ios-available');
+          const fallbackUrl = resolveAbsoluteUrl(modelUrl.replace(/\.(glb|gltf)$/i, '.usdz'));
+          const exists = await urlExists(fallbackUrl);
+
+          if (exists) {
+            setIosFallbackUrl(fallbackUrl);
+            setStatus('ios-available');
+            return;
+          }
+
+          setErrorMessage(
+            'iPhone AR requires a .usdz fallback. Create or upload a .usdz file with the same name as the GLB model.'
+          );
+          setStatus('error');
           return;
         }
 
         setErrorMessage(
-          'iPhone AR requires a .usdz fallback file. Please add a .usdz version alongside your GLB model.'
+          'iPhone AR requires a .usdz model file. Please use a .usdz asset for iPhone Quick Look.'
         );
         setStatus('error');
         return;
