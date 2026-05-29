@@ -9,7 +9,6 @@ type ViewerStatus =
   | 'ready'
   | 'scanning'
   | 'placed'
-  | 'ios-available'
   | 'unsupported'
   | 'error';
 
@@ -106,24 +105,6 @@ function normalizeModelToGround(root: any, THREE: any) {
   root.position.y -= box.min.y;
 }
 
-function isIosSafariDevice() {
-  const ua = navigator.userAgent || '';
-  const isIos = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|OPiOS|EdgiOS|Android/.test(ua);
-  return isIos && isSafari;
-}
-
-function resolveAbsoluteUrl(url: string) {
-  try {
-    return new URL(url, window.location.href).toString();
-  } catch {
-    return url;
-  }
-}
-
-function isSecureArContext() {
-  return window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost';
-}
 
 function disposeMaterial(material: THREE.Material) {
   Object.values(material).forEach((value) => {
@@ -153,7 +134,6 @@ export default function ProfessionalARViewer({
   const [progress, setProgress] = useState(0);
   const [scale, setScale] = useState(DEFAULT_SCALE);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [iosFallbackUrl, setIosFallbackUrl] = useState<string | null>(null);
 
   const statusLabel = useMemo(() => {
     switch (status) {
@@ -167,8 +147,6 @@ export default function ProfessionalARViewer({
         return 'Scan Surface';
       case 'placed':
         return 'Model Locked';
-      case 'ios-available':
-        return 'iPhone AR Ready';
       case 'unsupported':
         return 'Unsupported';
       case 'error':
@@ -187,44 +165,6 @@ export default function ProfessionalARViewer({
       const mount = mountRef.current;
       if (!mount) return;
 
-      if (isIosSafariDevice()) {
-        if (!isSecureArContext()) {
-          setErrorMessage(
-            'Apple Quick Look AR requires an HTTPS page (or localhost) to open .usdz models securely.'
-          );
-          setStatus('error');
-          return;
-        }
-
-        if (/\.usdz$/i.test(modelUrl)) {
-          setIosFallbackUrl(resolveAbsoluteUrl(modelUrl));
-          setStatus('ios-available');
-          return;
-        }
-
-        if (/\.(glb|gltf)$/i.test(modelUrl)) {
-          const fallbackUrl = resolveAbsoluteUrl(modelUrl.replace(/\.(glb|gltf)$/i, '.usdz'));
-
-          try {
-            const response = await fetch(fallbackUrl, { method: 'HEAD' });
-            if (response.ok) {
-              console.log('iOS USDZ model found:', fallbackUrl);
-              setIosFallbackUrl(fallbackUrl);
-              setStatus('ios-available');
-              return;
-            } else {
-              throw new Error(`USDZ file not found: ${response.status}`);
-            }
-          } catch (error) {
-            console.error('Failed to verify USDZ file:', error);
-            setErrorMessage(
-              'iPhone AR model file not found. Please provide a .usdz file alongside the .glb file and serve it over HTTPS.'
-            );
-            setStatus('error');
-            return;
-          }
-        }
-      }
 
       if (!('xr' in navigator) || !navigator.xr) {
         setStatus('unsupported');
@@ -662,31 +602,7 @@ export default function ProfessionalARViewer({
         </div>
       )}
 
-      {status === 'ios-available' && iosFallbackUrl && (
-        <div className="unsupported-screen">
-          <section className="unsupported-card">
-            <h2>iPhone AR Available</h2>
-            <p>Tap the button below to open the model in Apple Quick Look for AR viewing.</p>
-            <a
-            href={iosFallbackUrl}
-            rel="ar"
-            target="_blank"
-            type="model/vnd.usdz+zip"
-            className="control-button primary ar-action-link"
-          >
-              {/* Apple AR Quick Look requires an <img> as the first child */}
-              <img
-                src="/ssilogo.png"
-                alt="AR Thumbnail"
-                width={40}
-                height={40}
-                style={{ objectFit: 'contain', marginRight: '0.75rem' }}
-              />
-              View in AR on iPhone
-            </a>
-          </section>
-        </div>
-      )}
+
 
       {status === 'unsupported' && (
         <div className="unsupported-screen">
