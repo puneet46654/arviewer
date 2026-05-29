@@ -113,6 +113,18 @@ function isIosSafariDevice() {
   return isIos && isSafari;
 }
 
+function resolveAbsoluteUrl(url: string) {
+  try {
+    return new URL(url, window.location.href).toString();
+  } catch {
+    return url;
+  }
+}
+
+function isSecureArContext() {
+  return window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+}
+
 function disposeMaterial(material: THREE.Material) {
   Object.values(material).forEach((value) => {
     if (value && typeof value === 'object' && 'isTexture' in value) {
@@ -176,14 +188,22 @@ export default function ProfessionalARViewer({
       if (!mount) return;
 
       if (isIosSafariDevice()) {
+        if (!isSecureArContext()) {
+          setErrorMessage(
+            'Apple Quick Look AR requires an HTTPS page (or localhost) to open .usdz models securely.'
+          );
+          setStatus('error');
+          return;
+        }
+
         if (/\.usdz$/i.test(modelUrl)) {
-          setIosFallbackUrl(modelUrl);
+          setIosFallbackUrl(resolveAbsoluteUrl(modelUrl));
           setStatus('ios-available');
           return;
         }
 
         if (/\.(glb|gltf)$/i.test(modelUrl)) {
-          const fallbackUrl = modelUrl.replace(/\.(glb|gltf)$/i, '.usdz');
+          const fallbackUrl = resolveAbsoluteUrl(modelUrl.replace(/\.(glb|gltf)$/i, '.usdz'));
 
           try {
             const response = await fetch(fallbackUrl, { method: 'HEAD' });
@@ -198,7 +218,7 @@ export default function ProfessionalARViewer({
           } catch (error) {
             console.error('Failed to verify USDZ file:', error);
             setErrorMessage(
-              'iPhone AR model file not found. Please provide a .usdz file alongside the .glb file.'
+              'iPhone AR model file not found. Please provide a .usdz file alongside the .glb file and serve it over HTTPS.'
             );
             setStatus('error');
             return;
@@ -647,7 +667,13 @@ export default function ProfessionalARViewer({
           <section className="unsupported-card">
             <h2>iPhone AR Available</h2>
             <p>Tap the button below to open the model in Apple Quick Look for AR viewing.</p>
-            <a href={iosFallbackUrl} rel="ar" className="control-button primary ar-action-link">
+            <a
+            href={iosFallbackUrl}
+            rel="ar"
+            target="_blank"
+            type="model/vnd.usdz+zip"
+            className="control-button primary ar-action-link"
+          >
               {/* Apple AR Quick Look requires an <img> as the first child */}
               <img
                 src="/ssilogo.png"
