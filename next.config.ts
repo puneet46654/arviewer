@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     return [
       {
         // This targets all .usdz files in your public directory
-        source: '/(.*)\\.usdz',
+        source: '/:path*\\.usdz',
         headers: [
           {
             key: 'Content-Type',

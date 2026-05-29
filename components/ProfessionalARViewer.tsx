@@ -175,26 +175,34 @@ export default function ProfessionalARViewer({
       const mount = mountRef.current;
       if (!mount) return;
 
-      if (isIosSafariDevice() && /\.(glb|gltf)$/i.test(modelUrl)) {
-        const fallbackUrl = modelUrl.replace(/\.(glb|gltf)$/i, '.usdz');
-        
-        try {
-          const response = await fetch(fallbackUrl, { method: 'HEAD' });
-          if (response.ok) {
-            console.log('iOS USDZ model found:', fallbackUrl);
-            setIosFallbackUrl(fallbackUrl);
-            setStatus('ios-available');
-            return;
-          } else {
-            throw new Error(`USDZ file not found: ${response.status}`);
-          }
-        } catch (error) {
-          console.error('Failed to verify USDZ file:', error);
-          setErrorMessage(
-            'iPhone AR model file not found. Please provide a .usdz file alongside the .glb file.'
-          );
-          setStatus('error');
+      if (isIosSafariDevice()) {
+        if (/\.usdz$/i.test(modelUrl)) {
+          setIosFallbackUrl(modelUrl);
+          setStatus('ios-available');
           return;
+        }
+
+        if (/\.(glb|gltf)$/i.test(modelUrl)) {
+          const fallbackUrl = modelUrl.replace(/\.(glb|gltf)$/i, '.usdz');
+
+          try {
+            const response = await fetch(fallbackUrl, { method: 'HEAD' });
+            if (response.ok) {
+              console.log('iOS USDZ model found:', fallbackUrl);
+              setIosFallbackUrl(fallbackUrl);
+              setStatus('ios-available');
+              return;
+            } else {
+              throw new Error(`USDZ file not found: ${response.status}`);
+            }
+          } catch (error) {
+            console.error('Failed to verify USDZ file:', error);
+            setErrorMessage(
+              'iPhone AR model file not found. Please provide a .usdz file alongside the .glb file.'
+            );
+            setStatus('error');
+            return;
+          }
         }
       }
 
@@ -640,11 +648,13 @@ export default function ProfessionalARViewer({
             <h2>iPhone AR Available</h2>
             <p>Tap the button below to open the model in Apple Quick Look for AR viewing.</p>
             <a href={iosFallbackUrl} rel="ar" className="control-button primary ar-action-link">
-              {/* Apple AR Quick Look STRICTLY requires an <img> as the first child */}
-              <img 
-                src="/ssilogo.png" 
-                alt="AR Thumbnail" 
-                style={{ width: '0px', height: '0px', opacity: 0 }} 
+              {/* Apple AR Quick Look requires an <img> as the first child */}
+              <img
+                src="/ssilogo.png"
+                alt="AR Thumbnail"
+                width={40}
+                height={40}
+                style={{ objectFit: 'contain', marginRight: '0.75rem' }}
               />
               View in AR on iPhone
             </a>
