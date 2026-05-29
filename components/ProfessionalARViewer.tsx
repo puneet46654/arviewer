@@ -9,6 +9,7 @@ type ViewerStatus =
   | 'ready'
   | 'scanning'
   | 'placed'
+  | 'ios-available'
   | 'unsupported'
   | 'error';
 
@@ -105,6 +106,21 @@ function normalizeModelToGround(root: any, THREE: any) {
   root.position.y -= box.min.y;
 }
 
+function isIosSafariDevice() {
+  const ua = navigator.userAgent || '';
+  const isIos = /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|OPiOS|EdgiOS|Android/.test(ua);
+  return isIos && isSafari;
+}
+
+function resolveAbsoluteUrl(url: string) {
+  try {
+    return new URL(url, window.location.href).toString();
+  } catch {
+    return url;
+  }
+}
 
 function disposeMaterial(material: THREE.Material) {
   Object.values(material).forEach((value) => {
@@ -134,6 +150,7 @@ export default function ProfessionalARViewer({
   const [progress, setProgress] = useState(0);
   const [scale, setScale] = useState(DEFAULT_SCALE);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [iosFallbackUrl, setIosFallbackUrl] = useState<string | null>(null);
 
   const statusLabel = useMemo(() => {
     switch (status) {
@@ -147,6 +164,8 @@ export default function ProfessionalARViewer({
         return 'Scan Surface';
       case 'placed':
         return 'Model Locked';
+      case 'ios-available':
+        return 'iPhone AR Ready';
       case 'unsupported':
         return 'Unsupported';
       case 'error':
@@ -165,6 +184,25 @@ export default function ProfessionalARViewer({
       const mount = mountRef.current;
       if (!mount) return;
 
+      if (isIosSafariDevice()) {
+        if (/\.usdz$/i.test(modelUrl)) {
+          setIosFallbackUrl(resolveAbsoluteUrl(modelUrl));
+          setStatus('ios-available');
+          return;
+        }
+
+        if (/\.(glb|gltf)$/i.test(modelUrl)) {
+          setIosFallbackUrl(resolveAbsoluteUrl(modelUrl.replace(/\.(glb|gltf)$/i, '.usdz')));
+          setStatus('ios-available');
+          return;
+        }
+
+        setErrorMessage(
+          'iPhone AR requires a .usdz fallback file. Please add a .usdz version alongside your GLB model.'
+        );
+        setStatus('error');
+        return;
+      }
 
       if (!('xr' in navigator) || !navigator.xr) {
         setStatus('unsupported');
@@ -603,6 +641,30 @@ export default function ProfessionalARViewer({
       )}
 
 
+
+      {status === 'ios-available' && iosFallbackUrl && (
+        <div className="unsupported-screen">
+          <section className="unsupported-card">
+            <h2>iPhone AR Available</h2>
+            <p>Tap the button below to open the model in Apple Quick Look for AR viewing.</p>
+            <a
+              href={iosFallbackUrl}
+              rel="ar"
+              target="_blank"
+              className="control-button primary ar-action-link"
+            >
+              <img
+                src="/ssilogo.png"
+                alt="AR Thumbnail"
+                width={40}
+                height={40}
+                style={{ objectFit: 'contain', marginRight: '0.75rem' }}
+              />
+              View in AR on iPhone
+            </a>
+          </section>
+        </div>
+      )}
 
       {status === 'unsupported' && (
         <div className="unsupported-screen">
