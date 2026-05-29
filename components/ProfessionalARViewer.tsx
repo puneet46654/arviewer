@@ -239,7 +239,9 @@ export default function ProfessionalARViewer({
           const exists = await urlExists(fallbackUrl);
 
           if (exists) {
-            setIosFallbackUrl(fallbackUrl);
+          setIosFallbackUrl(
+  'https://modelviewer.dev/shared-assets/models/Astronaut.usdz'
+)
             setStatus('ios-available');
             return;
           }
