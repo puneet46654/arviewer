@@ -178,7 +178,6 @@ export default function ProfessionalARViewer({
       if (isIosSafariDevice() && /\.(glb|gltf)$/i.test(modelUrl)) {
         const fallbackUrl = modelUrl.replace(/\.(glb|gltf)$/i, '.usdz');
         
-        // Verify the USDZ file exists
         try {
           const response = await fetch(fallbackUrl, { method: 'HEAD' });
           if (response.ok) {
@@ -458,7 +457,6 @@ export default function ProfessionalARViewer({
         renderer.render(scene, camera);
       }
 
-
       function resize() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
@@ -550,7 +548,6 @@ export default function ProfessionalARViewer({
 
   const isLoading = status === 'loading' || status === 'checking';
   
-  // Only show the control panel WHEN the AR session is actually active
   const isSessionActive = status === 'scanning' || status === 'placed';
 
   return (
@@ -572,7 +569,6 @@ export default function ProfessionalARViewer({
         </div>
       </div>
 
-      {/* Renders ONLY after hitting "START AR" */}
       {isSessionActive && (
         <section className="ar-bottom-panel">
           <div className="ar-controls">
@@ -644,6 +640,12 @@ export default function ProfessionalARViewer({
             <h2>iPhone AR Available</h2>
             <p>Tap the button below to open the model in Apple Quick Look for AR viewing.</p>
             <a href={iosFallbackUrl} rel="ar" className="control-button primary ar-action-link">
+              {/* Apple AR Quick Look STRICTLY requires an <img> as the first child */}
+              <img 
+                src="/ssilogo.png" 
+                alt="AR Thumbnail" 
+                style={{ width: '0px', height: '0px', opacity: 0 }} 
+              />
               View in AR on iPhone
             </a>
           </section>
