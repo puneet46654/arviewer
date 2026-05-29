@@ -696,28 +696,36 @@ export default function ProfessionalARViewer({
 
 
 
-      {status === 'ios-available' && iosFallbackUrl && (
-        <div className="unsupported-screen">
-          <section className="unsupported-card">
-            <h2>iPhone AR Available</h2>
-            <p>Tap the button below to open the model in Apple Quick Look for AR viewing.</p>
-            <a
-              href={iosFallbackUrl}
-              rel="ar"
-              className="control-button primary ar-action-link"
-            >
-              <img
-                src="/ssilogo.png"
-                alt="AR Thumbnail"
-                width={40}
-                height={40}
-                style={{ objectFit: 'contain', marginRight: '0.75rem' }}
-              />
-              View in AR on iPhone
-            </a>
-          </section>
-        </div>
-      )}
+{status === 'ios-available' && iosFallbackUrl && (
+  <div className="unsupported-screen">
+    <section className="unsupported-card">
+      <h2>iPhone AR Available</h2>
+
+      <p>
+        Tap the button below to open the model in Apple Quick Look for AR viewing.
+      </p>
+
+      <a
+        href={iosFallbackUrl}
+        rel="ar"
+        className="control-button primary ar-action-link"
+      >
+        <img
+          src="/ssilogo.png"
+          alt="AR"
+          style={{
+            width: '1px',
+            height: '1px',
+            opacity: 0,
+            position: 'absolute',
+          }}
+        />
+
+        View in AR on iPhone
+      </a>
+    </section>
+  </div>
+)}
 
       {status === 'unsupported' && (
         <div className="unsupported-screen">

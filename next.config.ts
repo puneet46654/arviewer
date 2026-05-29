@@ -1,24 +1,29 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  reactStrictMode: true,
+
   async headers() {
     return [
       {
-        // This targets all .usdz files in your public directory
-        source: '/:path*\\.usdz',
+        source: '/:path*.usdz',
         headers: [
           {
             key: 'Content-Type',
             value: 'model/vnd.usdz+zip',
           },
           {
-             key: 'Cache-Control',
-             value: 'public, max-age=3600',
-          }
+            key: 'Content-Disposition',
+            value: 'inline',
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
         ],
       },
-    ];
+    ]
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig
