@@ -122,8 +122,20 @@ function resolveAbsoluteUrl(url: string) {
 
 async function urlExists(url: string) {
   try {
-    const response = await fetch(url, { method: 'HEAD' });
-    return response.ok;
+    const head = await fetch(url, { method: 'HEAD' });
+    if (head.ok) {
+      return true;
+    }
+  } catch {
+    // Some hosts reject HEAD requests, fall back to a small GET request.
+  }
+
+  try {
+    const rangeResponse = await fetch(url, {
+      method: 'GET',
+      headers: { Range: 'bytes=0-0' },
+    });
+    return rangeResponse.ok;
   } catch {
     return false;
   }
