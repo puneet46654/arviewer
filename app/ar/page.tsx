@@ -20,6 +20,7 @@ export default function ARPage() {
       modelUrl="/models/your-model.glb"
       iosModelUrl="/models/your-model.usdz"
       iosPreviewImageUrl="/ssilogo.png"
+      targetMaxDimensionMeters={0.8}
     />
   );
 }

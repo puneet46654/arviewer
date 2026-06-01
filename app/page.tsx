@@ -14,12 +14,13 @@ const ProfessionalARViewer = dynamic(
   }
 );
 
-export default function ARPage() {
+export default function HomePage() {
   return (
     <ProfessionalARViewer
       modelUrl="/models/your-model.glb"
       iosModelUrl="/models/your-model.usdz"
       iosPreviewImageUrl="/ssilogo.png"
+      targetMaxDimensionMeters={0.8}
     />
   );
 }

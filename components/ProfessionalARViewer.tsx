@@ -17,6 +17,7 @@ type ProfessionalARViewerProps = {
   modelUrl: string;
   iosModelUrl?: string;
   iosPreviewImageUrl?: string;
+  targetMaxDimensionMeters?: number;
 };
 
 type SceneRefs = {
@@ -31,10 +32,10 @@ type SceneRefs = {
   arButton: HTMLElement | null;
 };
 
-const DEFAULT_SCALE = 1;
-const MIN_SCALE = 0.35;
-const MAX_SCALE = 1.5;
-const SCALE_STEP = 0.1;
+const DEFAULT_MANUAL_SCALE = 1;
+const MIN_MANUAL_SCALE = 0.25;
+const MAX_MANUAL_SCALE = 4;
+const SCALE_STEP = 0.15;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -97,7 +98,26 @@ function cleanModelForAR(root: any, THREE: any) {
   });
 }
 
+function getModelSize(root: any, THREE: any) {
+  root.updateMatrixWorld(true);
+
+  const box = new THREE.Box3().setFromObject(root);
+  const size = new THREE.Vector3();
+
+  box.getSize(size);
+
+  const maxDimension = Math.max(size.x, size.y, size.z);
+
+  return {
+    box,
+    size,
+    maxDimension,
+  };
+}
+
 function normalizeModelToGround(root: any, THREE: any) {
+  root.updateMatrixWorld(true);
+
   const box = new THREE.Box3().setFromObject(root);
   const center = new THREE.Vector3();
 
@@ -106,6 +126,31 @@ function normalizeModelToGround(root: any, THREE: any) {
   root.position.x -= center.x;
   root.position.z -= center.z;
   root.position.y -= box.min.y;
+
+  root.updateMatrixWorld(true);
+}
+
+function getAutoScaleForTargetSize(
+  root: any,
+  THREE: any,
+  targetMaxDimensionMeters: number
+) {
+  const { size, maxDimension } = getModelSize(root, THREE);
+
+  if (!Number.isFinite(maxDimension) || maxDimension <= 0) {
+    return {
+      autoScale: 1,
+      sizeLabel: 'Unknown',
+    };
+  }
+
+  const safeTargetSize = clamp(targetMaxDimensionMeters, 0.15, 3);
+  const rawScale = safeTargetSize / maxDimension;
+
+  return {
+    autoScale: clamp(rawScale, 0.0001, 10000),
+    sizeLabel: `${size.x.toFixed(3)} × ${size.y.toFixed(3)} × ${size.z.toFixed(3)}`,
+  };
 }
 
 function isIosDevice() {
@@ -169,6 +214,14 @@ function getIosQuickLookCandidates(modelUrl: string, iosModelUrl?: string) {
   return [...new Set(candidates)].map(resolveAbsoluteUrl);
 }
 
+function addQuickLookOptions(url: string) {
+  if (url.includes('#')) {
+    return `${url}&allowsContentScaling=1`;
+  }
+
+  return `${url}#allowsContentScaling=1`;
+}
+
 function supportsQuickLookAR() {
   try {
     const anchor = document.createElement('a');
@@ -179,18 +232,20 @@ function supportsQuickLookAR() {
 }
 
 async function urlExists(url: string) {
+  const cleanUrl = url.split('#')[0];
+
   try {
-    const head = await fetch(url, { method: 'HEAD' });
+    const head = await fetch(cleanUrl, { method: 'HEAD' });
 
     if (head.ok) {
       return true;
     }
   } catch {
-    // Some hosts reject HEAD requests, fall back to a small GET request.
+    // Some hosts reject HEAD requests, so use GET fallback.
   }
 
   try {
-    const rangeResponse = await fetch(url, {
+    const rangeResponse = await fetch(cleanUrl, {
       method: 'GET',
       headers: { Range: 'bytes=0-0' },
     });
@@ -215,6 +270,7 @@ export default function ProfessionalARViewer({
   modelUrl,
   iosModelUrl,
   iosPreviewImageUrl = '/ssilogo.png',
+  targetMaxDimensionMeters = 0.8,
 }: ProfessionalARViewerProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const refs = useRef<SceneRefs | null>(null);
@@ -225,13 +281,21 @@ export default function ProfessionalARViewer({
 
   const modelPlacedRef = useRef(false);
   const modelLoadedRef = useRef(false);
-  const scaleRef = useRef(DEFAULT_SCALE);
+
+  const autoScaleRef = useRef(1);
+  const manualScaleRef = useRef(DEFAULT_MANUAL_SCALE);
 
   const [status, setStatus] = useState<ViewerStatus>('checking');
   const [progress, setProgress] = useState(0);
-  const [scale, setScale] = useState(DEFAULT_SCALE);
+  const [manualScale, setManualScale] = useState(DEFAULT_MANUAL_SCALE);
+  const [autoScale, setAutoScale] = useState(1);
+  const [modelSizeLabel, setModelSizeLabel] = useState('Calculating...');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [iosFallbackUrl, setIosFallbackUrl] = useState<string | null>(null);
+
+  function getEffectiveScale() {
+    return autoScaleRef.current * manualScaleRef.current;
+  }
 
   const statusLabel = useMemo(() => {
     switch (status) {
@@ -269,6 +333,14 @@ export default function ProfessionalARViewer({
       setIosFallbackUrl(null);
       setProgress(0);
       setStatus('checking');
+      setModelSizeLabel('Calculating...');
+      setManualScale(DEFAULT_MANUAL_SCALE);
+      setAutoScale(1);
+
+      modelPlacedRef.current = false;
+      modelLoadedRef.current = false;
+      autoScaleRef.current = 1;
+      manualScaleRef.current = DEFAULT_MANUAL_SCALE;
 
       if (isIosDevice()) {
         const candidates = getIosQuickLookCandidates(modelUrl, iosModelUrl);
@@ -277,16 +349,20 @@ export default function ProfessionalARViewer({
           if (await urlExists(candidate)) {
             if (cancelled) return;
 
-            setIosFallbackUrl(candidate);
+            setIosFallbackUrl(addQuickLookOptions(candidate));
             setStatus('ios-available');
 
             if (!supportsQuickLookAR()) {
               setErrorMessage(
-                'This browser may not support direct iPhone AR launch. Open this page in Safari if the button only downloads the model.'
+                'Open this page in Safari if the model opens only as a file preview.'
               );
             } else if (isIosInAppBrowser()) {
               setErrorMessage(
-                'If the AR viewer does not open here, use Safari. Some in-app browsers block Apple Quick Look AR.'
+                'Use Safari for AR. Some in-app browsers block Apple Quick Look AR.'
+              );
+            } else {
+              setErrorMessage(
+                'iPhone model size comes from the USDZ file. Pinch to resize if needed.'
               );
             }
 
@@ -297,7 +373,7 @@ export default function ProfessionalARViewer({
         if (cancelled) return;
 
         setErrorMessage(
-          'iPhone AR needs a real .usdz or .reality model file. Add public/models/your-model.usdz, then keep iosModelUrl="/models/your-model.usdz".'
+          'iPhone AR needs a real .usdz or .reality file. Add public/models/your-model.usdz.'
         );
         setStatus('error');
         return;
@@ -334,7 +410,7 @@ export default function ProfessionalARViewer({
         70,
         window.innerWidth / window.innerHeight,
         0.01,
-        50
+        80
       );
 
       const renderer = new THREE.WebGLRenderer({
@@ -343,7 +419,7 @@ export default function ProfessionalARViewer({
         powerPreference: 'high-performance',
       });
 
-      renderer.setPixelRatio(1);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.setSize(window.innerWidth, window.innerHeight, false);
       renderer.domElement.style.position = 'fixed';
       renderer.domElement.style.top = '0';
@@ -371,7 +447,7 @@ export default function ProfessionalARViewer({
       scene.add(keyLight);
 
       const shadowPlane = new THREE.Mesh(
-        new THREE.CircleGeometry(1.25, 32).rotateX(-Math.PI / 2),
+        new THREE.CircleGeometry(0.55, 32).rotateX(-Math.PI / 2),
         new THREE.ShadowMaterial({ opacity: 0.22 })
       );
 
@@ -394,7 +470,7 @@ export default function ProfessionalARViewer({
 
       const modelGroup = new THREE.Group();
       modelGroup.visible = false;
-      modelGroup.scale.setScalar(DEFAULT_SCALE);
+      modelGroup.scale.setScalar(1);
       scene.add(modelGroup);
 
       const controller = renderer.xr.getController(0);
@@ -417,7 +493,25 @@ export default function ProfessionalARViewer({
           cleanModelForAR(model, THREE);
           normalizeModelToGround(model, THREE);
 
+          const autoSizeResult = getAutoScaleForTargetSize(
+            model,
+            THREE,
+            targetMaxDimensionMeters
+          );
+
+          autoScaleRef.current = autoSizeResult.autoScale;
+          manualScaleRef.current = DEFAULT_MANUAL_SCALE;
+
+          setAutoScale(autoSizeResult.autoScale);
+          setManualScale(DEFAULT_MANUAL_SCALE);
+          setModelSizeLabel(autoSizeResult.sizeLabel);
+
           modelGroup.add(model);
+          modelGroup.scale.setScalar(getEffectiveScale());
+
+          const shadowSize = clamp(targetMaxDimensionMeters * 0.75, 0.35, 1.8);
+          shadowPlane.scale.setScalar(shadowSize);
+
           modelLoadedRef.current = true;
 
           setProgress(100);
@@ -451,7 +545,7 @@ export default function ProfessionalARViewer({
 
         modelGroup.position.copy(position);
         modelGroup.quaternion.copy(quaternion);
-        modelGroup.scale.setScalar(scaleRef.current);
+        modelGroup.scale.setScalar(getEffectiveScale());
         modelGroup.visible = true;
 
         shadowPlane.position.copy(position);
@@ -496,7 +590,7 @@ export default function ProfessionalARViewer({
         } catch {
           setStatus('error');
           setErrorMessage(
-            'Unable to initialize AR on this device. Ensure you are using a compatible browser and HTTPS.'
+            'Unable to initialize AR on this device. Use a compatible browser and HTTPS.'
           );
         }
       }
@@ -508,6 +602,7 @@ export default function ProfessionalARViewer({
 
       renderer.xr.addEventListener('sessionend', () => {
         renderer.setAnimationLoop(null);
+
         hitTestSourceRef.current?.cancel?.();
         hitTestSourceRef.current = null;
         hitTestSourceRequestedRef.current = false;
@@ -615,30 +710,49 @@ export default function ProfessionalARViewer({
       current.scene.traverse((object: any) => {
         if (!object || (object.type !== 'Mesh' && !object.isMesh)) return;
 
-        object.geometry.dispose();
+        object.geometry?.dispose?.();
 
         const materials = Array.isArray(object.material)
           ? object.material
           : [object.material];
 
-        materials.forEach(disposeMaterial);
+        materials.forEach((material: THREE.Material) => {
+          if (material) {
+            disposeMaterial(material);
+          }
+        });
       });
 
       current.renderer.dispose();
       refs.current = null;
     };
-  }, [modelUrl, iosModelUrl]);
+  }, [modelUrl, iosModelUrl, targetMaxDimensionMeters]);
 
-  function updateScale(nextValue: number) {
-    const nextScale = clamp(Number(nextValue.toFixed(2)), MIN_SCALE, MAX_SCALE);
+  function updateManualScale(nextValue: number) {
+    const nextManualScale = clamp(
+      Number(nextValue.toFixed(2)),
+      MIN_MANUAL_SCALE,
+      MAX_MANUAL_SCALE
+    );
 
-    scaleRef.current = nextScale;
-    setScale(nextScale);
+    manualScaleRef.current = nextManualScale;
+    setManualScale(nextManualScale);
 
     const modelGroup = refs.current?.modelGroup;
 
     if (modelGroup) {
-      modelGroup.scale.setScalar(nextScale);
+      modelGroup.scale.setScalar(getEffectiveScale());
+    }
+  }
+
+  function resetAutoScale() {
+    manualScaleRef.current = DEFAULT_MANUAL_SCALE;
+    setManualScale(DEFAULT_MANUAL_SCALE);
+
+    const modelGroup = refs.current?.modelGroup;
+
+    if (modelGroup) {
+      modelGroup.scale.setScalar(getEffectiveScale());
     }
   }
 
@@ -668,7 +782,9 @@ export default function ProfessionalARViewer({
             <img src="/ssilogo.png" alt="Company Logo" className="brand-logo" />
             <h1>Room AR Viewer</h1>
           </div>
-          <p>Move your phone slowly to scan the floor. Tap the marker once to place the model.</p>
+          <p>
+            The model auto-adjusts to room scale. Scan the floor, then tap the marker once.
+          </p>
         </section>
 
         <div className="ar-status" aria-live="polite">
@@ -683,27 +799,27 @@ export default function ProfessionalARViewer({
             <button
               className="control-button"
               type="button"
-              onClick={() => updateScale(scale - SCALE_STEP)}
-              disabled={scale <= MIN_SCALE}
+              onClick={() => updateManualScale(manualScale - SCALE_STEP)}
+              disabled={manualScale <= MIN_MANUAL_SCALE}
             >
-              - Scale
+              - Size
             </button>
 
             <button
               className="control-button"
               type="button"
-              onClick={() => updateScale(DEFAULT_SCALE)}
+              onClick={resetAutoScale}
             >
-              Actual Size
+              Auto Size
             </button>
 
             <button
               className="control-button"
               type="button"
-              onClick={() => updateScale(scale + SCALE_STEP)}
-              disabled={scale >= MAX_SCALE}
+              onClick={() => updateManualScale(manualScale + SCALE_STEP)}
+              disabled={manualScale >= MAX_MANUAL_SCALE}
             >
-              + Scale
+              + Size
             </button>
 
             <button
@@ -717,8 +833,9 @@ export default function ProfessionalARViewer({
           </div>
 
           <div className="ar-meta">
-            <strong>Scale: {scale.toFixed(2)}x</strong>
-            <span>Tap once to lock placement</span>
+            <strong>Auto: {autoScale.toFixed(3)}x</strong>
+            <span>Manual: {manualScale.toFixed(2)}x</span>
+            <span>Model: {modelSizeLabel}</span>
           </div>
         </section>
       )}
@@ -729,7 +846,7 @@ export default function ProfessionalARViewer({
             <h2>
               {status === 'checking' ? 'System Check' : 'Loading 3D model'}
             </h2>
-            <p>Keep the camera steady while the viewer prepares the model.</p>
+            <p>Preparing model scale and AR placement.</p>
             <div className="progress-track">
               <div
                 className="progress-bar"
@@ -748,18 +865,18 @@ export default function ProfessionalARViewer({
             <h2>iPhone AR Available</h2>
 
             <p>
-              Tap the button below to open the model in Apple Quick Look for AR viewing.
+              Tap below to open Apple Quick Look. Pinch inside Quick Look if you need size adjustment.
             </p>
 
             {errorMessage && <p className="ios-note">{errorMessage}</p>}
 
-<div className="ios-ar-button-wrap" role="button" aria-label="View in AR on iPhone">
-  <a href={iosFallbackUrl} rel="ar" className="ios-ar-link">
-    <img src={iosPreviewImageUrl} alt="View in AR on iPhone" />
-  </a>
+            <div className="ios-ar-button-wrap" role="button" aria-label="View in AR on iPhone">
+              <a href={iosFallbackUrl} rel="ar" className="ios-ar-link">
+                <img src={iosPreviewImageUrl} alt="View in AR on iPhone" />
+              </a>
 
-  <span className="ios-ar-label">View in AR on iPhone</span>
-</div>
+              <span className="ios-ar-label">View in AR on iPhone</span>
+            </div>
           </section>
         </div>
       )}
@@ -768,7 +885,10 @@ export default function ProfessionalARViewer({
         <div className="unsupported-screen">
           <section className="unsupported-card">
             <h2>AR Not Available</h2>
-            <p>Use Chrome on an ARCore-supported Android device. The page must be served through HTTPS.</p>
+            <p>
+              Use Chrome on an ARCore-supported Android device or Safari on iPhone.
+              The page must be served through HTTPS.
+            </p>
           </section>
         </div>
       )}
