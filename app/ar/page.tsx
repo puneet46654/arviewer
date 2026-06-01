@@ -8,12 +8,18 @@ const ProfessionalARViewer = dynamic(
     ssr: false,
     loading: () => (
       <div className="ar-loading-placeholder">
-        Preparing AR viewer…
+        Preparing AR viewer...
       </div>
     ),
   }
 );
 
 export default function ARPage() {
-  return <ProfessionalARViewer modelUrl="/models/your-model.glb" />;
+  return (
+    <ProfessionalARViewer
+      modelUrl="/models/your-model.glb"
+      iosModelUrl="/models/your-model.usdz"
+      iosPreviewImageUrl="/ssilogo.png"
+    />
+  );
 }

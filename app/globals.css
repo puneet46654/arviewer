@@ -279,25 +279,41 @@ button {
   box-shadow: 0 18px 42px rgba(11, 211, 211, 0.22);
 }
 
-.ar-action-link {
+.ios-ar-button-wrap {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 220px;
-  min-height: 48px;
+  min-width: 240px;
+  min-height: 54px;
+  border-radius: 999px;
   overflow: hidden;
+  background: linear-gradient(135deg, var(--cyan), #5cf4d0);
+  box-shadow: 0 18px 42px rgba(11, 211, 211, 0.22);
 }
 
-.ar-action-link::after {
-  content: attr(data-label);
-}
-
-.ar-quicklook-image {
+.ios-ar-link {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  cursor: pointer;
+}
+
+.ios-ar-link img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   opacity: 0.01;
+}
+
+.ios-ar-label {
+  position: relative;
+  z-index: 1;
+  color: #00191c;
+  font-size: 15px;
+  font-weight: 800;
   pointer-events: none;
 }
 
@@ -426,11 +442,10 @@ button {
     padding: 0 10px;
   }
 
-  .ar-action-link {
-    width: auto;
-    min-width: 220px;
-  }
-
+.ios-ar-button-wrap {
+  width: auto;
+  min-width: 240px;
+}
   .ar-meta {
     text-align: center;
     white-space: normal;

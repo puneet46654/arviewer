@@ -753,19 +753,13 @@ export default function ProfessionalARViewer({
 
             {errorMessage && <p className="ios-note">{errorMessage}</p>}
 
-            <a
-              href={iosFallbackUrl}
-              rel="ar"
-              className="control-button primary ar-action-link"
-              aria-label="View in AR on iPhone"
-              data-label="View in AR on iPhone"
-            >
-              <img
-                src={iosPreviewImageUrl}
-                alt="View in AR on iPhone"
-                className="ar-quicklook-image"
-              />
-            </a>
+<div className="ios-ar-button-wrap" role="button" aria-label="View in AR on iPhone">
+  <a href={iosFallbackUrl} rel="ar" className="ios-ar-link">
+    <img src={iosPreviewImageUrl} alt="View in AR on iPhone" />
+  </a>
+
+  <span className="ios-ar-label">View in AR on iPhone</span>
+</div>
           </section>
         </div>
       )}
