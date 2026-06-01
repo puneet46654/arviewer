@@ -15,6 +15,8 @@ type ViewerStatus =
 
 type ProfessionalARViewerProps = {
   modelUrl: string;
+  iosModelUrl?: string;
+  iosPreviewImageUrl?: string;
 };
 
 type SceneRefs = {
@@ -108,13 +110,20 @@ function normalizeModelToGround(root: any, THREE: any) {
 
 function isIosDevice() {
   const ua = navigator.userAgent || '';
-  return /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
 }
 
 function isIosInAppBrowser() {
   const ua = navigator.userAgent || '';
-  return isIosDevice() && /FBAN|FBAV|Instagram|Twitter|LinkedIn|Line|WhatsApp|Snapchat|Telegram|WeChat|Teams/i.test(ua);
+
+  return (
+    isIosDevice() &&
+    /FBAN|FBAV|Instagram|Twitter|LinkedIn|Line|WhatsApp|Snapchat|Telegram|WeChat|Teams/i.test(ua)
+  );
 }
 
 function resolveAbsoluteUrl(url: string) {
@@ -125,9 +134,54 @@ function resolveAbsoluteUrl(url: string) {
   }
 }
 
+function stripQueryAndHash(url: string) {
+  return url.split(/[?#]/)[0] ?? url;
+}
+
+function replaceModelExtension(url: string, extension: 'usdz' | 'reality') {
+  const match = url.match(/^([^?#]+)([?#].*)?$/);
+  const path = match?.[1] ?? url;
+  const suffix = match?.[2] ?? '';
+
+  const nextPath = /\.[^/.]+$/.test(path)
+    ? path.replace(/\.[^/.]+$/, `.${extension}`)
+    : `${path}.${extension}`;
+
+  return `${nextPath}${suffix}`;
+}
+
+function getIosQuickLookCandidates(modelUrl: string, iosModelUrl?: string) {
+  const candidates: string[] = [];
+
+  if (iosModelUrl) {
+    candidates.push(iosModelUrl);
+  }
+
+  const modelPath = stripQueryAndHash(modelUrl);
+
+  if (/\.(usdz|reality)$/i.test(modelPath)) {
+    candidates.push(modelUrl);
+  }
+
+  candidates.push(replaceModelExtension(modelUrl, 'usdz'));
+  candidates.push(replaceModelExtension(modelUrl, 'reality'));
+
+  return [...new Set(candidates)].map(resolveAbsoluteUrl);
+}
+
+function supportsQuickLookAR() {
+  try {
+    const anchor = document.createElement('a');
+    return Boolean(anchor.relList?.supports?.('ar'));
+  } catch {
+    return false;
+  }
+}
+
 async function urlExists(url: string) {
   try {
     const head = await fetch(url, { method: 'HEAD' });
+
     if (head.ok) {
       return true;
     }
@@ -140,6 +194,7 @@ async function urlExists(url: string) {
       method: 'GET',
       headers: { Range: 'bytes=0-0' },
     });
+
     return rangeResponse.ok;
   } catch {
     return false;
@@ -158,6 +213,8 @@ function disposeMaterial(material: THREE.Material) {
 
 export default function ProfessionalARViewer({
   modelUrl,
+  iosModelUrl,
+  iosPreviewImageUrl = '/ssilogo.png',
 }: ProfessionalARViewerProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const refs = useRef<SceneRefs | null>(null);
@@ -208,51 +265,39 @@ export default function ProfessionalARViewer({
       const mount = mountRef.current;
       if (!mount) return;
 
+      setErrorMessage(null);
+      setIosFallbackUrl(null);
+      setProgress(0);
+      setStatus('checking');
+
       if (isIosDevice()) {
-        if (isIosInAppBrowser()) {
-          setErrorMessage(
-            'iPhone AR is not supported inside an in-app browser like Teams. Please open this page in Safari to use AR.'
-          );
-          setStatus('error');
-          return;
-        }
+        const candidates = getIosQuickLookCandidates(modelUrl, iosModelUrl);
 
-        if (/\.usdz$/i.test(modelUrl)) {
-          const absoluteUrl = resolveAbsoluteUrl(modelUrl);
-          const exists = await urlExists(absoluteUrl);
+        for (const candidate of candidates) {
+          if (await urlExists(candidate)) {
+            if (cancelled) return;
 
-          if (exists) {
-            setIosFallbackUrl(absoluteUrl);
+            setIosFallbackUrl(candidate);
             setStatus('ios-available');
+
+            if (!supportsQuickLookAR()) {
+              setErrorMessage(
+                'This browser may not support direct iPhone AR launch. Open this page in Safari if the button only downloads the model.'
+              );
+            } else if (isIosInAppBrowser()) {
+              setErrorMessage(
+                'If the AR viewer does not open here, use Safari. Some in-app browsers block Apple Quick Look AR.'
+              );
+            }
+
             return;
           }
-
-          setErrorMessage(
-            'The iPhone AR model file could not be found. Please make sure the .usdz file is available and served over HTTPS.'
-          );
-          setStatus('error');
-          return;
         }
 
-        if (/\.(glb|gltf)$/i.test(modelUrl)) {
-          const fallbackUrl = resolveAbsoluteUrl(modelUrl.replace(/\.(glb|gltf)$/i, '.usdz'));
-          const exists = await urlExists(fallbackUrl);
-
-          if (exists) {
-            setIosFallbackUrl(fallbackUrl);
-            setStatus('ios-available');
-            return;
-          }
-
-          setErrorMessage(
-            'iPhone AR requires a .usdz fallback. Create or upload a .usdz file with the same name as the GLB model.'
-          );
-          setStatus('error');
-          return;
-        }
+        if (cancelled) return;
 
         setErrorMessage(
-          'iPhone AR requires a .usdz model file. Please use a .usdz asset for iPhone Quick Look.'
+          'iPhone AR needs a real .usdz or .reality model file. Add public/models/your-model.usdz, then keep iosModelUrl="/models/your-model.usdz".'
         );
         setStatus('error');
         return;
@@ -281,6 +326,8 @@ export default function ProfessionalARViewer({
 
       const { THREE, GLTFLoader, DRACOLoader, ARButton } = await importThreeModules(modulesRef);
 
+      if (cancelled) return;
+
       const scene = new THREE.Scene();
 
       const camera = new THREE.PerspectiveCamera(
@@ -303,11 +350,11 @@ export default function ProfessionalARViewer({
       renderer.domElement.style.left = '0';
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
-      
-      if ((THREE as any).SRGBColorSpace || (THREE as any).sRGBEncoding) {
-        try {
-          renderer.outputColorSpace = THREE.SRGBColorSpace;
-        } catch {}
+
+      try {
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+      } catch {
+        // Older Three.js versions may use a different color output property.
       }
 
       renderer.xr.enabled = true;
@@ -378,6 +425,7 @@ export default function ProfessionalARViewer({
         },
         (event: any) => {
           if (!event.total) return;
+
           const loaded = Math.round((event.loaded / event.total) * 100);
           setProgress(loaded);
         },
@@ -428,11 +476,12 @@ export default function ProfessionalARViewer({
         arButton = ARButton.createButton(renderer, {
           requiredFeatures: ['hit-test'],
         });
+
         if (arButton) {
           arButton.classList.add('ar-button');
           document.body.appendChild(arButton);
         }
-      } catch (err) {
+      } catch {
         try {
           arButton = ARButton.createButton(renderer, {
             requiredFeatures: ['hit-test'],
@@ -444,7 +493,7 @@ export default function ProfessionalARViewer({
             arButton.classList.add('ar-button');
             document.body.appendChild(arButton);
           }
-        } catch (err2) {
+        } catch {
           setStatus('error');
           setErrorMessage(
             'Unable to initialize AR on this device. Ensure you are using a compatible browser and HTTPS.'
@@ -578,7 +627,7 @@ export default function ProfessionalARViewer({
       current.renderer.dispose();
       refs.current = null;
     };
-  }, [modelUrl]);
+  }, [modelUrl, iosModelUrl]);
 
   function updateScale(nextValue: number) {
     const nextScale = clamp(Number(nextValue.toFixed(2)), MIN_SCALE, MAX_SCALE);
@@ -607,7 +656,6 @@ export default function ProfessionalARViewer({
   }
 
   const isLoading = status === 'loading' || status === 'checking';
-  
   const isSessionActive = status === 'scanning' || status === 'placed';
 
   return (
@@ -694,38 +742,33 @@ export default function ProfessionalARViewer({
         </div>
       )}
 
+      {status === 'ios-available' && iosFallbackUrl && (
+        <div className="unsupported-screen">
+          <section className="unsupported-card">
+            <h2>iPhone AR Available</h2>
 
+            <p>
+              Tap the button below to open the model in Apple Quick Look for AR viewing.
+            </p>
 
-{status === 'ios-available' && iosFallbackUrl && (
-  <div className="unsupported-screen">
-    <section className="unsupported-card">
-      <h2>iPhone AR Available</h2>
+            {errorMessage && <p className="ios-note">{errorMessage}</p>}
 
-      <p>
-        Tap the button below to open the model in Apple Quick Look for AR viewing.
-      </p>
-
-      <a
-        href={iosFallbackUrl}
-        rel="ar"
-        className="control-button primary ar-action-link"
-      >
-        <img
-          src="/ssilogo.png"
-          alt="AR"
-          style={{
-            width: '1px',
-            height: '1px',
-            opacity: 0,
-            position: 'absolute',
-          }}
-        />
-
-        View in AR on iPhone
-      </a>
-    </section>
-  </div>
-)}
+            <a
+              href={iosFallbackUrl}
+              rel="ar"
+              className="control-button primary ar-action-link"
+              aria-label="View in AR on iPhone"
+              data-label="View in AR on iPhone"
+            >
+              <img
+                src={iosPreviewImageUrl}
+                alt="View in AR on iPhone"
+                className="ar-quicklook-image"
+              />
+            </a>
+          </section>
+        </div>
+      )}
 
       {status === 'unsupported' && (
         <div className="unsupported-screen">

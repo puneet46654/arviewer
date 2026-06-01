@@ -1,21 +1,25 @@
-import Link from 'next/link';
+'use client';
 
-export default function HomePage() {
+import dynamic from 'next/dynamic';
+
+const ProfessionalARViewer = dynamic(
+  () => import('@/components/ProfessionalARViewer'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="ar-loading-placeholder">
+        Preparing AR viewer...
+      </div>
+    ),
+  }
+);
+
+export default function ARPage() {
   return (
-    <main className="home-shell">
-      <section className="home-card">
-        <p className="eyebrow">WebXR Room Viewer</p>
-
-        <h1>Place the 3D model in your real space.</h1>
-
-        <p>
-          Open the camera, scan the floor, and place the model at a stable real-world position using WebXR AR.
-        </p>
-
-        <Link className="primary-link" href="/ar">
-          Launch AR Viewer
-        </Link>
-      </section>
-    </main>
+    <ProfessionalARViewer
+      modelUrl="/models/your-model.glb"
+      iosModelUrl="/models/your-model.usdz"
+      iosPreviewImageUrl="/ssilogo.png"
+    />
   );
 }

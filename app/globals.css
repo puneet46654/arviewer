@@ -2,12 +2,12 @@
   --bg: #05070d;
   --panel: rgba(10, 18, 30, 0.74);
   --panel-strong: rgba(10, 18, 30, 0.94);
-  --text: #ffffff; /* Brighter pure white text */
-  --muted: #cbd5e1; /* Lighter muted text */
+  --text: #ffffff;
+  --muted: #cbd5e1;
   --cyan: #0bd3d3;
   --cyan-dark: #099f9e;
   --line: rgba(255, 255, 255, 0.2);
-  --danger: #ff4d4d; /* Bright contrast red */
+  --danger: #ff4d4d;
 }
 
 * {
@@ -124,6 +124,19 @@ button {
   height: 100%;
 }
 
+.ar-loading-placeholder {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(11, 211, 211, 0.2), transparent 32%),
+    var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .ar-topbar {
   position: fixed;
   z-index: 20;
@@ -223,7 +236,6 @@ button {
   gap: 8px;
 }
 
-/* Updated Button Styles for Contrast */
 .control-button {
   min-height: 44px;
   padding: 0 14px;
@@ -256,6 +268,43 @@ button {
 
 .control-button.warning:active:not(:disabled) {
   background: rgba(255, 77, 77, 0.25);
+}
+
+.control-button.primary {
+  border: 0;
+  color: #00191c;
+  background: linear-gradient(135deg, var(--cyan), #5cf4d0);
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 18px 42px rgba(11, 211, 211, 0.22);
+}
+
+.ar-action-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 220px;
+  min-height: 48px;
+  overflow: hidden;
+}
+
+.ar-action-link::after {
+  content: attr(data-label);
+}
+
+.ar-quicklook-image {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0.01;
+  pointer-events: none;
+}
+
+.ios-note {
+  margin-top: -6px !important;
+  color: var(--cyan) !important;
+  font-size: 13px !important;
 }
 
 .ar-meta {
@@ -325,8 +374,8 @@ button {
   transition: width 220ms ease;
 }
 
-/* Target the auto-generated Three.js AR button specifically */
-.ar-button, #ARButton {
+.ar-button,
+#ARButton {
   position: fixed !important;
   left: 50% !important;
   bottom: max(40px, env(safe-area-inset-bottom)) !important;
@@ -375,6 +424,11 @@ button {
   .control-button {
     width: 100%;
     padding: 0 10px;
+  }
+
+  .ar-action-link {
+    width: auto;
+    min-width: 220px;
   }
 
   .ar-meta {

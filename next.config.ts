@@ -1,4 +1,15 @@
-import type { NextConfig } from 'next'
+import type { NextConfig } from 'next';
+
+const arAssetHeaders = [
+  {
+    key: 'Content-Disposition',
+    value: 'inline',
+  },
+  {
+    key: 'Access-Control-Allow-Origin',
+    value: '*',
+  },
+];
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -12,18 +23,21 @@ const nextConfig: NextConfig = {
             key: 'Content-Type',
             value: 'model/vnd.usdz+zip',
           },
-          {
-            key: 'Content-Disposition',
-            value: 'inline',
-          },
-          {
-            key: 'Access-Control-Allow-Origin',
-            value: '*',
-          },
+          ...arAssetHeaders,
         ],
       },
-    ]
+      {
+        source: '/:path*.reality',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'model/vnd.reality',
+          },
+          ...arAssetHeaders,
+        ],
+      },
+    ];
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;
